@@ -24,7 +24,7 @@ export default function Leaderboard() {
     return () => window.clearInterval(interval);
   }, [load]);
   const apps = Object.entries(data?.attendance?.appUsageMs ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  if (data && data.role !== "intern") return null;
+  if (!data || data.role !== "intern") return null;
   return (
     <aside className="absolute right-5 top-5 z-30 w-72 max-w-[calc(100%-2.5rem)] overflow-hidden rounded-xl border border-border/70 bg-card/90 text-card-foreground shadow-xl backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
