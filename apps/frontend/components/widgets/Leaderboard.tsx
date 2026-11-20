@@ -31,8 +31,8 @@ export default function Leaderboard() {
         <div><p className="text-sm font-semibold">Team leaderboard</p><p className="text-xs text-muted-foreground">Today's app usage</p></div>
         <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">LIVE</span>
       </div>
-      <div className="space-y-2 p-3">
-        {data?.leaderboard.length ? data.leaderboard.slice(0, 5).map((person, index) => (
+      <div className="max-h-56 space-y-2 overflow-y-auto p-3">
+        {data?.leaderboard.length ? data.leaderboard.map((person, index) => (
           <div key={person.userId} className="flex items-center gap-3 rounded-lg px-2 py-1.5">
             <span className="w-5 text-center text-xs font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
             <span className="min-w-0 flex-1 truncate text-xs font-medium">{person.displayName}</span>
