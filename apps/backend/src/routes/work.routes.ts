@@ -34,17 +34,20 @@ async function readStore(): Promise<Store> {
     return { tasks: [], attendance: {} };
   }
 }
-async function writeStore(store: Store): Promise<void> {
-  const write = writeQueue.then(async () => {
+async function updateStore(mutator: (store: Store) => void): Promise<void> {
+  const operation = writeQueue.then(async () => {
+    const store = await readStore();
+    mutator(store);
     await mkdir(dataDir, { recursive: true });
     const temp = `${storePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-    await writeFile(temp, `${JSON.stringify(store, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    await writeFile(temp, `${JSON.stringify(store, null, 2)}\\n`, { encoding: "utf8", flag: "wx" });
     try { await rename(temp, storePath); }
     catch (error) { await unlink(temp).catch(() => undefined); throw error; }
   });
-  writeQueue = write.catch(() => undefined);
-  await write;
+  writeQueue = operation.catch(() => undefined);
+  await operation;
 }
+
 async function getUsers(): Promise<User[]> {
   const raw = JSON.parse(await readFile(path.join(dataDir, "users.json"), "utf8")) as { users?: User[] };
   return Array.isArray(raw.users) ? raw.users : [];
@@ -77,29 +80,32 @@ export default async function workRoutes(app: FastifyInstance) {
     const now = Date.now();
     const date = dayKey(new Date(now));
     const key = `${userId}:${date}`;
-    const store = await readStore();
-    const previous = store.attendance[key];
+    const now = Date.now();
+    const date = dayKey(new Date(now));
+    const key = `${userId}:${date}`;
     const apps = shellState === "authenticated" ? safeApps(request.body?.openApps) : [];
-    const elapsed = previous ? Math.max(0, Math.min(now - previous.lastTickAt, 45_000)) : 0;
-    const wasWorking = previous?.lastState === "authenticated" && previous.openApps.length > 0;
-    const wasPresent = previous?.lastState === "authenticated" || previous?.lastState === "sleep" || previous?.lastState === "locked";
-    const record: DayRecord = previous ?? {
-      userId, date, firstLoginAt: new Date(now).toISOString(), lastSeenAt: new Date(now).toISOString(),
-      lastAppClosedAt: null, presentMs: 0, activeMs: 0, appUsageMs: {}, lastTickAt: now,
-      lastState: String(shellState), openApps: [],
-    };
-    if (previous && wasPresent) record.presentMs += elapsed;
-    if (previous && wasWorking) {
-      record.activeMs += elapsed;
-      for (const appName of previous.openApps) record.appUsageMs[appName] = (record.appUsageMs[appName] ?? 0) + elapsed;
-    }
-    if (previous?.openApps.length && apps.length === 0) record.lastAppClosedAt = new Date(now).toISOString();
-    record.lastSeenAt = new Date(now).toISOString();
-    record.lastTickAt = now;
-    record.lastState = String(shellState);
-    record.openApps = apps;
-    store.attendance[key] = record;
-    await writeStore(store);
+    await updateStore((store) => {
+      const previous = store.attendance[key];
+      const elapsed = previous ? Math.max(0, Math.min(now - previous.lastTickAt, 45_000)) : 0;
+      const wasWorking = previous?.lastState === "authenticated" && previous.openApps.length > 0;
+      const wasPresent = previous?.lastState === "authenticated" || previous?.lastState === "sleep" || previous?.lastState === "locked";
+      const record: DayRecord = previous ?? {
+        userId, date, firstLoginAt: new Date(now).toISOString(), lastSeenAt: new Date(now).toISOString(),
+        lastAppClosedAt: null, presentMs: 0, activeMs: 0, appUsageMs: {}, lastTickAt: now,
+        lastState: String(shellState), openApps: [],
+      };
+      if (previous && wasPresent) record.presentMs += elapsed;
+      if (previous && wasWorking) {
+        record.activeMs += elapsed;
+        for (const appName of previous.openApps) record.appUsageMs[appName] = (record.appUsageMs[appName] ?? 0) + elapsed;
+      }
+      if (previous?.openApps.length && apps.length === 0) record.lastAppClosedAt = new Date(now).toISOString();
+      record.lastSeenAt = new Date(now).toISOString();
+      record.lastTickAt = now;
+      record.lastState = String(shellState);
+      record.openApps = apps;
+      store.attendance[key] = record;
+    });
     return { success: true };
   });
 
@@ -159,9 +165,7 @@ export default async function workRoutes(app: FastifyInstance) {
     }
     const now = new Date().toISOString();
     const task: Task = { id: randomUUID(), title, description, assigneeId, datasetPath, status: "todo", createdBy: userId, createdAt: now, updatedAt: now };
-    const store = await readStore();
-    store.tasks.push(task);
-    await writeStore(store);
+    await updateStore((store) => { store.tasks.push(task); });
     return reply.code(201).send({ task });
   });
 
@@ -172,13 +176,15 @@ export default async function workRoutes(app: FastifyInstance) {
     const users = await getUsers();
     const user = users.find((entry) => entry.id === userId);
     if (!user) return reply.code(401).send({ message: "Session user no longer exists." });
-    const store = await readStore();
-    const task = store.tasks.find((entry) => entry.id === request.params.taskId);
-    if (!task) return reply.code(404).send({ message: "Task not found." });
-    if (user.role !== "admin" && task.assigneeId !== userId) return reply.code(403).send({ message: "You cannot update this task." });
-    task.status = request.body.status;
-    task.updatedAt = new Date().toISOString();
-    await writeStore(store);
-    return { task };
+    let updatedTask: Task | undefined;
+    await updateStore((store) => {
+      const task = store.tasks.find((entry) => entry.id === request.params.taskId);
+      if (!task) return;
+      task.status = request.body.status as TaskStatus;
+      task.updatedAt = new Date().toISOString();
+      updatedTask = task;
+    });
+    if (!updatedTask) return reply.code(404).send({ message: "Task not found." });
+    return { task: updatedTask };
   });
 }
