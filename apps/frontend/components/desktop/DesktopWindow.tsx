@@ -7,6 +7,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Minimize2, Minus, Square, X } from "lucide-react";
 
 type Props = {
@@ -70,6 +71,11 @@ export default function DesktopWindow({
   );
   const [closing, setClosing] = useState(false);
   const [interacting, setInteracting] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   const dragRef = useRef({
     x: 0,
@@ -308,8 +314,10 @@ export default function DesktopWindow({
     }
   };
 
+  if (!portalReady) return null;
+
   if (minimized) {
-    return (
+    return createPortal(
       <button
         type="button"
         onClick={() => setMinimized(false)}
@@ -322,7 +330,8 @@ export default function DesktopWindow({
         }`}
       >
         {title}
-      </button>
+      </button>,
+      document.body,
     );
   }
 
@@ -338,7 +347,7 @@ export default function DesktopWindow({
     />
   );
 
-  return (
+  return createPortal(
     <section
       aria-label={title}
       style={{
@@ -439,6 +448,7 @@ export default function DesktopWindow({
           {handle("sw", "left-0 bottom-0 size-4 cursor-sw-resize")}
         </>
       )}
-    </section>
+    </section>,
+    document.body,
   );
 }
