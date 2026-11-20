@@ -19,7 +19,6 @@ import storageRoutes from "./routes/storage.routes.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 
 const sessionSecret = process.env.SESSION_SECRET;
-const isProduction = process.env.NODE_ENV === "production";
 
 if (!sessionSecret || Buffer.byteLength(sessionSecret, "utf8") < 32) {
   throw new Error("SESSION_SECRET must be configured with at least 32 bytes.");
@@ -60,7 +59,9 @@ await app.register(session, {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: isProduction,
+    // The frontend proxies API requests over HTTP on LAN deployments.
+    // Secure cookies are opt-in for deployments served over HTTPS.
+    secure: process.env.SESSION_COOKIE_SECURE === "true",
     maxAge: 8 * 60 * 60,
   },
   saveUninitialized: false,
