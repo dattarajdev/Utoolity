@@ -211,6 +211,7 @@ export default function Home() {
       "keydown",
       "mousemove",
       "touchstart",
+      "wheel",
     ];
     activityEvents.forEach((event) =>
       window.addEventListener(event, sendSocketActivity, { passive: true }),
@@ -352,9 +353,14 @@ export default function Home() {
       "mousemove",
       "touchstart",
     ];
+    const handleVisibilityChange = () => {
+      if (!document.hidden) recordActivity();
+    };
     activityEvents.forEach((event) =>
       window.addEventListener(event, recordActivity, { passive: true }),
     );
+    window.addEventListener("focus", recordActivity);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     let warningShownFor = 0;
     const timer = window.setInterval(() => {
@@ -379,6 +385,18 @@ export default function Home() {
         );
       }
       if (remaining > 0) return;
+      // Re-read the latest activity timestamp immediately before transitioning.
+      // This prevents a delayed interval tick from sleeping an active desktop.
+      const latestActivity = Number(localStorage.getItem(LAST_ACTIVITY_KEY));
+      if (
+        Number.isFinite(latestActivity) &&
+        latestActivity > lastActivityRef.current
+      ) {
+        lastActivityRef.current = latestActivity;
+        return;
+      }
+      if (busyRef.current || Date.now() - lastActivityRef.current < SLEEP_AFTER_MS)
+        return;
       localStorage.setItem(SHELL_STATE_KEY, "sleep");
       localStorage.setItem(SLEEP_STARTED_KEY, String(Date.now()));
       setShellState("sleep");
@@ -388,6 +406,8 @@ export default function Home() {
       activityEvents.forEach((event) =>
         window.removeEventListener(event, recordActivity),
       );
+      window.removeEventListener("focus", recordActivity);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [shellState, sendSocketActivity]);
 

@@ -169,14 +169,41 @@ function Lockcard({
     undefined,
   );
   const now = useClock();
-  const [profile, setProfile] = useState<LockProfile | null>(null);
-  const [hostname, setHostname] = useState("");
+  const [profile, setProfile] = useState<LockProfile | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const cached = JSON.parse(
+        window.localStorage.getItem("utoolity.cached-user") || "null",
+      ) as LockProfileResponse["user"] | null;
+      return cached?.id && cached.hostname && cached.displayName
+        ? { ...cached, locked: true }
+        : null;
+    } catch {
+      return null;
+    }
+  });
+  const [hostname, setHostname] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return (
+      window.localStorage.getItem(HOSTNAME_STORAGE_KEY)?.trim() ||
+      (() => {
+        try {
+          const cached = JSON.parse(
+            window.localStorage.getItem("utoolity.cached-user") || "null",
+          ) as LockProfileResponse["user"] | null;
+          return cached?.hostname || "";
+        } catch {
+          return "";
+        }
+      })()
+    );
+  });
   const [deviceIdInput, setDeviceIdInput] = useState("");
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [password, setPassword] = useState("");
-  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
@@ -231,8 +258,7 @@ function Lockcard({
       const configuredHostname = savedHostname || "";
 
       setHostname(configuredHostname);
-      // Cached profile is only a temporary display hint; keep the default wallpaper
-      // and setup prompt visible instead of displaying a loading lock screen.
+      // Preserve the synchronous cached profile while the backend refreshes it.
       const cachedProfileRaw = window.localStorage.getItem(
         "utoolity.cached-user",
       );
@@ -242,7 +268,7 @@ function Lockcard({
             cachedProfileRaw,
           ) as LockProfileResponse["user"];
           if (cached?.id && cached.hostname && cached.displayName) {
-            setProfile({ ...cached, locked: true });
+            setProfile((current) => current ?? { ...cached, locked: true });
             setHostname(cached.hostname);
           }
         } catch {
@@ -285,6 +311,14 @@ function Lockcard({
         setError("");
       } catch (cause) {
         if (!active) return;
+        // A request aborted during navigation, refresh, or React effect cleanup
+        // is expected cancellation, not a profile failure worth notifying about.
+        if (
+          cause instanceof DOMException &&
+          cause.name === "AbortError"
+        ) {
+          return;
+        }
         console.warn(
           "Lock-screen profile lookup failed; preserving cached profile if available.",
           cause,
