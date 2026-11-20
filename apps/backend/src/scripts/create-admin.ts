@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 type StoredUser = {
@@ -43,58 +43,74 @@ async function main(): Promise<void> {
     process.env.BACKEND_DATA_DIR ?? path.join(process.cwd(), "data"),
   );
   const usersFilePath = path.join(dataDirectory, "users.json");
+  const lockFilePath = `${usersFilePath}.admin-bootstrap.lock`;
   await mkdir(dataDirectory, { recursive: true });
 
-  let stored: UsersFile = { users: [] };
+  let lock;
   try {
-    stored = JSON.parse(await readFile(usersFilePath, "utf8")) as UsersFile;
+    lock = await open(lockFilePath, "wx");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-
-  if (!Array.isArray(stored.users)) {
-    throw new Error("users.json must contain a users array.");
-  }
-  if (stored.users.some((user) => user.role === "admin")) {
-    throw new Error("An administrator already exists. Admin bootstrap is single-use.");
-  }
-  if (
-    stored.users.some(
-      (user) => user.hostname.toLowerCase() === hostname.toLowerCase(),
-    )
-  ) {
-    throw new Error("ADMIN_HOSTNAME is already assigned to an existing profile.");
-  }
-
-  const admin: StoredUser = {
-    id: hostname,
-    hostname,
-    displayName,
-    password,
-    deviceId: hostname,
-    role: "admin",
-    preferences: {
-      "utoolity.icon-size": "large",
-      "utoolity.grain": "none",
-      "utoolity.theme": "device",
-      "utoolity.wallpaper": "Default",
-    },
-  };
-  const temporaryPath = `${usersFilePath}.${process.pid}.${randomUUID()}.tmp`;
-
-  await writeFile(
-    temporaryPath,
-    JSON.stringify({ users: [...stored.users, admin] }, null, 2) + "\n",
-    { encoding: "utf8", flag: "wx" },
-  );
-  try {
-    await rename(temporaryPath, usersFilePath);
-  } catch (error) {
-    await unlink(temporaryPath).catch(() => undefined);
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error("Admin bootstrap is already running.");
+    }
     throw error;
   }
 
-  console.info(`Administrator profile created: ${hostname}`);
+  try {
+    let stored: UsersFile = { users: [] };
+    try {
+      stored = JSON.parse(await readFile(usersFilePath, "utf8")) as UsersFile;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+
+    if (!Array.isArray(stored.users)) {
+      throw new Error("users.json must contain a users array.");
+    }
+    if (stored.users.some((user) => user.role === "admin")) {
+      throw new Error("An administrator already exists. Admin bootstrap is single-use.");
+    }
+    if (
+      stored.users.some(
+        (user) => user.hostname.toLowerCase() === hostname.toLowerCase(),
+      )
+    ) {
+      throw new Error("ADMIN_HOSTNAME is already assigned to an existing profile.");
+    }
+
+    const admin: StoredUser = {
+      id: hostname,
+      hostname,
+      displayName,
+      password,
+      deviceId: hostname,
+      role: "admin",
+      preferences: {
+        "utoolity.icon-size": "large",
+        "utoolity.grain": "none",
+        "utoolity.theme": "device",
+        "utoolity.wallpaper": "Default",
+      },
+    };
+    const temporaryPath = `${usersFilePath}.${process.pid}.${randomUUID()}.tmp`;
+
+    await writeFile(
+      temporaryPath,
+      JSON.stringify({ users: [...stored.users, admin] }, null, 2) + "\n",
+      { encoding: "utf8", flag: "wx" },
+    );
+    try {
+      await rename(temporaryPath, usersFilePath);
+    } catch (error) {
+      await unlink(temporaryPath).catch(() => undefined);
+      throw error;
+    }
+
+    console.info(`Administrator profile created: ${hostname}`);
+  } finally {
+    await lock.close();
+    await unlink(lockFilePath).catch(() => undefined);
+  }
 }
 
 main().catch((error: unknown) => {
