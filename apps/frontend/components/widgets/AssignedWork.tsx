@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-type Task = { id: string; title: string; description: string; status: "todo" | "in_progress" | "review" | "done" };
+type Task = { id: string; title: string; description: string; datasetPath: string; status: "todo" | "in_progress" | "review" | "done" };
 const nextStatus: Record<Task["status"], Task["status"]> = { todo: "in_progress", in_progress: "review", review: "done", done: "todo" };
 export default function AssignedWork() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -21,6 +21,7 @@ export default function AssignedWork() {
           <div key={task.id} className="rounded-lg border border-border p-3">
             <p className="text-xs font-semibold">{task.title}</p>
             {task.description && <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{task.description}</p>}
+            {task.datasetPath && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("utoolity:open-assigned-dataset", { detail: { path: task.datasetPath } }))} className="mt-2 block max-w-full truncate text-[11px] font-semibold text-primary hover:underline">Open assigned dataset</button>}
             <div className="mt-2 flex items-center justify-between gap-2"><span className="text-[10px] capitalize text-muted-foreground">{task.status.replace("_", " ")}</span><button type="button" onClick={() => void update(task)} className="text-[11px] font-semibold text-primary hover:underline">{task.status === "review" ? "Complete" : "Move forward"}</button></div>
           </div>
         )) : <p className="px-2 py-3 text-xs text-muted-foreground">No open tasks assigned.</p>}
