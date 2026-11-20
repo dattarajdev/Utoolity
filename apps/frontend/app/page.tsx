@@ -14,15 +14,33 @@ const AUTHENTICATED_SESSION_KEY = "utoolity.authenticated";
 const SHELL_STATE_KEY = "utoolity.shell-state";
 const LAST_ACTIVITY_KEY = "utoolity.last-activity";
 const SLEEP_STARTED_KEY = "utoolity.sleep-started";
-const SLEEP_AFTER_MS = 5 * 60 * 1000;
-const LOCK_AFTER_MS = 2 * 60 * 1000;
-const SLEEP_WARNING_BEFORE_MS = 30 * 1000;
+const DEFAULT_SLEEP_AFTER_MS = 5 * 60 * 1000;
+const DEFAULT_LOCK_AFTER_MS = 2 * 60 * 1000;
+const DEFAULT_SLEEP_WARNING_BEFORE_MS = 30 * 1000;
+const INACTIVITY_SETTINGS_EVENT = "utoolity:inactivity-settings-changed";
+type InactivitySettings = { sleepAfterMs: number; warningBeforeMs: number; lockAfterMs: number };
+function readInactivitySettings(): InactivitySettings {
+  const read = (key: string, fallback: number, min: number, max: number) => {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return fallback;
+    const value = Number(stored);
+    return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+  };
+  const sleepAfterMs = read("utoolity.sleep-after-ms", DEFAULT_SLEEP_AFTER_MS, 60_000, 3_600_000);
+  return {
+    sleepAfterMs,
+    warningBeforeMs: Math.min(read("utoolity.sleep-warning-before-ms", DEFAULT_SLEEP_WARNING_BEFORE_MS, 0, 300_000), sleepAfterMs),
+    lockAfterMs: read("utoolity.lock-after-sleep-ms", DEFAULT_LOCK_AFTER_MS, 60_000, 3_600_000),
+  };
+}
 
 export default function Home() {
   const { wallpaperId: initialWallpaperId, theme: initialTheme } =
     useInitialDesktopPreferences();
   const [shellState, setShellState] = useState<ShellState>("checking");
+  const [inactivitySettings, setInactivitySettings] = useState<InactivitySettings>({ sleepAfterMs: DEFAULT_SLEEP_AFTER_MS, warningBeforeMs: DEFAULT_SLEEP_WARNING_BEFORE_MS, lockAfterMs: DEFAULT_LOCK_AFTER_MS });
   const lastActivityRef = useRef(Date.now());
+  const lastPersistedActivityRef = useRef(0);
   const busyRef = useRef(false);
   const socketRef = useRef<WebSocket | null>(null);
   const socketRetryRef = useRef<number | undefined>(undefined);
@@ -99,6 +117,17 @@ export default function Home() {
   useEffect(() => {
     shellStateRef.current = shellState;
   }, [shellState]);
+
+  useEffect(() => {
+    const syncSettings = () => setInactivitySettings(readInactivitySettings());
+    syncSettings();
+    window.addEventListener(INACTIVITY_SETTINGS_EVENT, syncSettings);
+    window.addEventListener("storage", syncSettings);
+    return () => {
+      window.removeEventListener(INACTIVITY_SETTINGS_EVENT, syncSettings);
+      window.removeEventListener("storage", syncSettings);
+    };
+  }, []);
   useEffect(() => {
     let queuedWrite = Promise.resolve();
 
@@ -342,43 +371,37 @@ export default function Home() {
     if (shellState !== "authenticated") return;
 
     const recordActivity = () => {
-      lastActivityRef.current = Date.now();
-      localStorage.setItem(LAST_ACTIVITY_KEY, String(lastActivityRef.current));
+      const now = Date.now();
+      lastActivityRef.current = now;
+      if (now - lastPersistedActivityRef.current >= 1000) {
+        lastPersistedActivityRef.current = now;
+        localStorage.setItem(LAST_ACTIVITY_KEY, String(now));
+      }
       sendSocketActivity();
     };
-    const activityEvents = [
-      "pointerdown",
-      "keydown",
-      "mousemove",
-      "touchstart",
-    ];
-    const handleVisibilityChange = () => {
-      if (!document.hidden) recordActivity();
-    };
+    const activityEvents = ["pointerdown", "pointermove", "keydown", "mousemove", "touchstart", "wheel"];
     activityEvents.forEach((event) =>
       window.addEventListener(event, recordActivity, { passive: true }),
     );
-    window.addEventListener("focus", recordActivity);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     let warningShownFor = 0;
     const timer = window.setInterval(() => {
       if (busyRef.current) return;
       const inactiveFor = Date.now() - lastActivityRef.current;
-      const remaining = SLEEP_AFTER_MS - inactiveFor;
+      const remaining = inactivitySettings.sleepAfterMs - inactiveFor;
       if (
+        inactivitySettings.warningBeforeMs > 0 &&
         remaining > 0 &&
-        remaining <= SLEEP_WARNING_BEFORE_MS &&
+        remaining <= inactivitySettings.warningBeforeMs &&
         warningShownFor !== lastActivityRef.current
       ) {
         warningShownFor = lastActivityRef.current;
+        const seconds = Math.ceil(inactivitySettings.warningBeforeMs / 1000);
         window.dispatchEvent(
           new CustomEvent("utoolity:notification", {
             detail: {
               type: "system",
               title: "Sleep warning",
-              message:
-                "The desktop will enter sleep in 30 seconds due to inactivity. Move your mouse or press a key to stay active.",
+              message: "The desktop will enter sleep in " + seconds + " seconds due to inactivity. Move your mouse or press a key to stay active.",
             },
           }),
         );
@@ -394,7 +417,7 @@ export default function Home() {
         lastActivityRef.current = latestActivity;
         return;
       }
-      if (busyRef.current || Date.now() - lastActivityRef.current < SLEEP_AFTER_MS)
+      if (busyRef.current || Date.now() - lastActivityRef.current < inactivitySettings.sleepAfterMs)
         return;
       localStorage.setItem(SHELL_STATE_KEY, "sleep");
       localStorage.setItem(SLEEP_STARTED_KEY, String(Date.now()));
@@ -405,10 +428,8 @@ export default function Home() {
       activityEvents.forEach((event) =>
         window.removeEventListener(event, recordActivity),
       );
-      window.removeEventListener("focus", recordActivity);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [shellState, sendSocketActivity]);
+  }, [shellState, sendSocketActivity, inactivitySettings]);
 
   useEffect(() => {
     const startWork = () => {
@@ -440,13 +461,13 @@ export default function Home() {
         : Date.now();
     localStorage.setItem(SLEEP_STARTED_KEY, String(sleepStarted));
     const timer = window.setInterval(() => {
-      if (Date.now() - sleepStarted < LOCK_AFTER_MS) return;
+      if (Date.now() - sleepStarted < inactivitySettings.lockAfterMs) return;
       localStorage.setItem(SHELL_STATE_KEY, "locked");
       setShellState("locked");
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [shellState]);
+  }, [shellState, inactivitySettings.lockAfterMs]);
 
   useEffect(() => {
     document.documentElement.dataset.shellState = shellState;
