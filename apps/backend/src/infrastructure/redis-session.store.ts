@@ -1,7 +1,7 @@
+import type { FastifyRequest } from "fastify";
 import type { RedisClientType } from "redis";
-import type { Session } from "@fastify/session";
 
-type SessionRecord = Session & { [key: string]: unknown };
+type SessionRecord = FastifyRequest["session"];
 
 export class RedisSessionStore {
   constructor(
