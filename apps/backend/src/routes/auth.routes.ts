@@ -769,6 +769,64 @@ export default async function authRoutes(app: FastifyInstance) {
     }
   });
 
+  // Admin data is resolved from the current persisted profile, never from client-supplied role data.
+  app.get("/admin/dashboard", async (request, reply) => {
+    const userId = getSession(request).userId;
+    if (!userId) {
+      return reply.code(401).send({ message: "Not authenticated." });
+    }
+
+    try {
+      const users = await readUsers();
+      const currentUser = findById(users, userId);
+      if (!currentUser) {
+        return reply.code(401).send({ message: "Session user no longer exists." });
+      }
+      if (currentUser.role !== "admin") {
+        return reply.code(403).send({ message: "Administrator access required." });
+      }
+
+      let reports: Array<Record<string, unknown>> = [];
+      try {
+        const raw = await readFile(issueReportsFilePath, "utf8");
+        const parsed = JSON.parse(raw) as { reports?: unknown };
+        if (Array.isArray(parsed.reports)) {
+          reports = parsed.reports.filter(
+            (report): report is Record<string, unknown> =>
+              typeof report === "object" && report !== null && !Array.isArray(report),
+          );
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          request.log.warn({ err: error }, "Unable to read issue reports for admin dashboard");
+        }
+      }
+
+      return {
+        stats: {
+          totalUsers: users.length,
+          interns: users.filter((user) => user.role === "intern").length,
+          admins: users.filter((user) => user.role === "admin").length,
+          openIssues: reports.filter((report) => report.status === "open").length,
+        },
+        users: users.map(publicUser),
+        reports: reports.slice(-20).reverse().map((report) => ({
+          id: typeof report.id === "string" ? report.id : "",
+          appName: typeof report.appName === "string" ? report.appName : "Desktop",
+          errorName: typeof report.errorName === "string" ? report.errorName : "Application error",
+          source: typeof report.source === "string" ? report.source : "",
+          description: typeof report.description === "string" ? report.description : "",
+          requestId: typeof report.requestId === "string" ? report.requestId : "",
+          reportedAt: typeof report.reportedAt === "string" ? report.reportedAt : "",
+          status: typeof report.status === "string" ? report.status : "open",
+        })),
+      };
+    } catch (error) {
+      request.log.error({ err: error }, "Unable to load admin dashboard");
+      return reply.code(500).send({ message: "Unable to load the admin dashboard." });
+    }
+  });
+
   // Keep preference routes at registration time, not inside /auth/me's catch
   // handler (which made them unreachable and left the routes unregistered).
   app.get("/auth/preferences", async (request, reply) => {
