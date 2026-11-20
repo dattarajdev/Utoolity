@@ -116,7 +116,7 @@ export default async function workRoutes(app: FastifyInstance) {
     const user = users.find((entry) => entry.id === userId);
     if (!user) return reply.code(401).send({ message: "Session user no longer exists." });
     const store = await readStore();
-    return { tasks: user.role === "admin" ? store.tasks : store.tasks.filter((task) => task.assigneeId === userId) };
+    return { role: user.role, tasks: user.role === "admin" ? [] : store.tasks.filter((task) => task.assigneeId === userId) };
   });
 
   app.get("/auth/productivity", async (request, reply) => {
@@ -132,6 +132,7 @@ export default async function workRoutes(app: FastifyInstance) {
       return { userId: user.id, displayName: user.displayName, totalAppTimeMs };
     }).sort((a, b) => b.totalAppTimeMs - a.totalAppTimeMs);
     return {
+      role: users.find((user) => user.id === userId)?.role ?? "intern",
       attendance: own ? { ...own, presentMs: own.presentMs + (own.lastState ? Math.max(0, Math.min(Date.now() - own.lastTickAt, 45_000)) : 0) } : null,
       leaderboard,
     };
