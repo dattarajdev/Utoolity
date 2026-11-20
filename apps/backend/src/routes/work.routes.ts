@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 type SessionRequest = FastifyRequest & { session: { userId?: string } };
 type User = { id: string; hostname: string; displayName: string; role: "intern" | "admin" };
@@ -102,6 +103,16 @@ export default async function workRoutes(app: FastifyInstance) {
     return { success: true };
   });
 
+  app.get("/tasks", async (request, reply) => {
+    const userId = (request as SessionRequest).session.userId;
+    if (!userId) return reply.code(401).send({ message: "Not authenticated." });
+    const users = await getUsers();
+    const user = users.find((entry) => entry.id === userId);
+    if (!user) return reply.code(401).send({ message: "Session user no longer exists." });
+    const store = await readStore();
+    return { tasks: user.role === "admin" ? store.tasks : store.tasks.filter((task) => task.assigneeId === userId) };
+  });
+
   app.get("/auth/productivity", async (request, reply) => {
     const userId = (request as SessionRequest).session.userId;
     if (!userId) return reply.code(401).send({ message: "Not authenticated." });
@@ -147,7 +158,7 @@ export default async function workRoutes(app: FastifyInstance) {
       return reply.code(400).send({ message: "Enter a valid title and select a registered intern." });
     }
     const now = new Date().toISOString();
-    const task: Task = { id: crypto.randomUUID(), title, description, assigneeId, datasetPath, status: "todo", createdBy: userId, createdAt: now, updatedAt: now };
+    const task: Task = { id: randomUUID(), title, description, assigneeId, datasetPath, status: "todo", createdBy: userId, createdAt: now, updatedAt: now };
     const store = await readStore();
     store.tasks.push(task);
     await writeStore(store);
