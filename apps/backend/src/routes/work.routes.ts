@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { basename } from "node:path";
 import { randomUUID } from "node:crypto";
 
 type SessionRequest = FastifyRequest & { session: { userId?: string } };
@@ -65,6 +66,8 @@ function safeApps(value: unknown): string[] {
   }).filter(Boolean))];
 }
 function isAdmin(user: User | undefined): boolean { return user?.role === "admin"; }
+function safeSegment(value: string): string { return value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^-+|-+$/g, "") || "user"; }
+function userStorageRoot(user: User): string { const root = path.resolve(process.env.STORAGE_ROOT ?? path.join(process.cwd(), "data")); return path.join(root, "interns", safeSegment(user.displayName) + "-" + safeSegment(user.hostname)); }
 
 export default async function workRoutes(app: FastifyInstance) {
   app.post<{ Body: { shellState?: unknown; openApps?: unknown } }>("/auth/telemetry", async (request, reply) => {
@@ -152,16 +155,44 @@ export default async function workRoutes(app: FastifyInstance) {
     const userId = (request as SessionRequest).session.userId;
     if (!userId) return reply.code(401).send({ message: "Not authenticated." });
     const users = await getUsers();
-    if (!isAdmin(users.find((user) => user.id === userId))) return reply.code(403).send({ message: "Administrator access required." });
+    const admin = users.find((user) => user.id === userId);
+    if (!isAdmin(admin)) return reply.code(403).send({ message: "Administrator access required." });
     const title = typeof request.body?.title === "string" ? request.body.title.trim() : "";
     const description = typeof request.body?.description === "string" ? request.body.description.trim() : "";
     const assigneeId = typeof request.body?.assigneeId === "string" ? request.body.assigneeId : "";
-    const datasetPath = typeof request.body?.datasetPath === "string" ? request.body.datasetPath.trim().slice(0, 1024) : "";
-    if (title.length < 2 || title.length > 120 || description.length > 2000 || !users.some((user) => user.id === assigneeId && user.role === "intern")) {
+    const requestedDatasetPath = typeof request.body?.datasetPath === "string" ? request.body.datasetPath.trim().slice(0, 1024) : "";
+    const assignee = users.find((user) => user.id === assigneeId && user.role === "intern");
+    if (title.length < 2 || title.length > 120 || description.length > 2000 || !assignee) {
       return reply.code(400).send({ message: "Enter a valid title and select a registered intern." });
     }
     const now = new Date().toISOString();
-    const task: Task = { id: randomUUID(), title, description, assigneeId, datasetPath, status: "todo", createdBy: userId, createdAt: now, updatedAt: now };
+    const taskId = randomUUID();
+    let assignedDatasetPath = "";
+    if (requestedDatasetPath) {
+      if (!admin || !requestedDatasetPath.startsWith("server/")) {
+        return reply.code(400).send({ message: "Select a file from your File Manager." });
+      }
+      const sourceRoot = userStorageRoot(admin);
+      const source = path.resolve(sourceRoot, requestedDatasetPath.slice("server/".length));
+      if (source === sourceRoot || !source.startsWith(sourceRoot + path.sep)) {
+        return reply.code(400).send({ message: "Invalid dataset path." });
+      }
+      try {
+        const details = await lstat(source);
+        if (!details.isFile() || details.isSymbolicLink()) {
+          return reply.code(400).send({ message: "The selected dataset must be a regular file." });
+        }
+      } catch {
+        return reply.code(400).send({ message: "The selected dataset could not be found." });
+      }
+      const relativeDestination = path.join("work-assignments", taskId, basename(source));
+      const destinationRoot = userStorageRoot(assignee);
+      const destination = path.join(destinationRoot, relativeDestination);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await copyFile(source, destination);
+      assignedDatasetPath = "server/" + relativeDestination.split(path.sep).join("/");
+    }
+    const task: Task = { id: taskId, title, description, assigneeId, datasetPath: assignedDatasetPath, status: "todo", createdBy: userId, createdAt: now, updatedAt: now };
     await updateStore((store) => { store.tasks.push(task); });
     return reply.code(201).send({ task });
   });
@@ -174,13 +205,19 @@ export default async function workRoutes(app: FastifyInstance) {
     const user = users.find((entry) => entry.id === userId);
     if (!user) return reply.code(401).send({ message: "Session user no longer exists." });
     let updatedTask: Task | undefined;
+    let forbidden = false;
     await updateStore((store) => {
       const task = store.tasks.find((entry) => entry.id === request.params.taskId);
       if (!task) return;
+      if (user.role !== "admin" && task.assigneeId !== userId) {
+        forbidden = true;
+        return;
+      }
       task.status = request.body.status as TaskStatus;
       task.updatedAt = new Date().toISOString();
       updatedTask = task;
     });
+    if (forbidden) return reply.code(403).send({ message: "You cannot update this task." });
     if (!updatedTask) return reply.code(404).send({ message: "Task not found." });
     return { task: updatedTask };
   });
