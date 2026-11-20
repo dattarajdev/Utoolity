@@ -75,7 +75,9 @@ export default async function RootLayout({
             <div className="flex min-h-screen">
               {/* <Sidebar /> */}
 
-              <main className="min-w-0 flex-1"><RouteAccessGuard>{children}</RouteAccessGuard></main>
+              <main className="min-w-0 flex-1">
+                <RouteAccessGuard>{children}</RouteAccessGuard>
+              </main>
             </div>
           </InitialDesktopPreferencesProvider>
         </TooltipProvider>
