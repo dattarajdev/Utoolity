@@ -53,7 +53,7 @@ async function getUsers(): Promise<User[]> {
   const raw = JSON.parse(await readFile(path.join(dataDir, "users.json"), "utf8")) as { users?: User[] };
   return Array.isArray(raw.users) ? raw.users : [];
 }
-function dayKey(now: Date): string { return now.toISOString().slice(0, 10); }
+function dayKey(now: Date): string { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(now); }
 function validStatus(value: unknown): value is TaskStatus {
   return value === "todo" || value === "in_progress" || value === "review" || value === "done";
 }
