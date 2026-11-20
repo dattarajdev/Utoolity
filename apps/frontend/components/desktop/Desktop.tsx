@@ -22,6 +22,8 @@ import {
 import ToolContent, { appTitles, type DesktopAppId } from "./ToolContent";
 import type { WindowSummary } from "./SystemTray/AllWindows";
 import CollaborationPanel from "../collaboration/CollaborationPanel";
+import Leaderboard from "../widgets/Leaderboard";
+import AssignedWork from "../widgets/AssignedWork";
 
 type DesktopProps = {
   onSleep?: () => void;
@@ -794,6 +796,8 @@ export default function Desktop({
       className={`desktop-canvas relative min-h-dvh w-full select-none transition-opacity duration-200 ${isVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
       onContextMenu={openMenu}
     >
+      {!hideDesktopChrome && !isSharedViewer && <Leaderboard />}
+      {!hideDesktopChrome && !isSharedViewer && <AssignedWork />}
       {!hideDesktopChrome && <DesktopApps onOpen={openApp} />}
       {!hideDesktopChrome && <Profile onSleep={onSleep} />}
       {!hideDesktopChrome && !isSharedViewer && (
