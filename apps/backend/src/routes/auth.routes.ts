@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 type InternUser = {
   id: string;
@@ -94,6 +93,7 @@ async function writeSessions(
 }
 
 let preferenceWriteQueue: Promise<void> = Promise.resolve();
+let issueReportWriteQueue: Promise<void> = Promise.resolve();
 let sessionUpdateQueue: Promise<void> = Promise.resolve();
 let workspaceUpdateQueue: Promise<void> = Promise.resolve();
 const deviceInactivityTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -216,6 +216,48 @@ const runtimeDataDirectory = path.resolve(
 const usersFilePath = path.join(runtimeDataDirectory, "users.json");
 const workspacesFilePath = path.join(runtimeDataDirectory, "workspaces.json");
 const sessionsFilePath = path.join(runtimeDataDirectory, "sessions.json");
+const issueReportsFilePath = path.join(runtimeDataDirectory, "issue-reports.json");
+
+async function saveIssueReport(report: Record<string, unknown>): Promise<void> {
+  const write = issueReportWriteQueue.then(async () => {
+    await mkdir(runtimeDataDirectory, { recursive: true });
+
+    let reports: Array<Record<string, unknown>> = [];
+    try {
+      const raw = await readFile(issueReportsFilePath, "utf8");
+      let parsed: { reports?: Array<Record<string, unknown>> };
+      try {
+        parsed = JSON.parse(raw) as { reports?: Array<Record<string, unknown>> };
+      } catch (error) {
+        // Earlier builds could append a literal "\\n" instead of a newline.
+        if (!raw.endsWith("\\\\n")) throw error;
+        parsed = JSON.parse(raw.slice(0, -2)) as {
+          reports?: Array<Record<string, unknown>>;
+        };
+      }
+      reports = Array.isArray(parsed.reports) ? parsed.reports : [];
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+
+    reports.push(report);
+    const temporaryPath = `${issueReportsFilePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify({ reports }, null, 2)}\\n`,
+      { encoding: "utf8", flag: "wx" },
+    );
+    try {
+      await rename(temporaryPath, issueReportsFilePath);
+    } catch (error) {
+      await unlink(temporaryPath).catch(() => undefined);
+      throw error;
+    }
+  });
+
+  issueReportWriteQueue = write.catch(() => undefined);
+  await write;
+}
 
 const validWallpaperIds = new Set([
   "Default",
@@ -488,37 +530,7 @@ export default async function authRoutes(app: FastifyInstance) {
         }
       }
 
-      const reportsFilePath = fileURLToPath(
-        new URL("../data/issue-reports.json", import.meta.url),
-      );
-      let reports: Array<Record<string, unknown>> = [];
-      try {
-        const raw = await readFile(reportsFilePath, "utf8");
-        const parsed = JSON.parse(raw) as {
-          reports?: Array<Record<string, unknown>>;
-        };
-        reports = Array.isArray(parsed.reports) ? parsed.reports : [];
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      }
-      const report = {
-        id: `issue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        appName,
-        errorName,
-        details,
-        description,
-        source,
-        requestId,
-        reportedBy,
-        reportedAt: new Date().toISOString(),
-        status: "open",
-      };
-      reports.push(report);
-      await writeFile(
-        reportsFilePath,
-        `${JSON.stringify({ reports }, null, 2)}\\n`,
-        "utf8",
-      );
+      await saveIssueReport(report);
       request.log.warn({ reportId: report.id, reportedBy: reportedBy.type }, "Issue report received");
       return reply.code(201).send({ success: true, reportId: report.id });
     } catch (error) {
