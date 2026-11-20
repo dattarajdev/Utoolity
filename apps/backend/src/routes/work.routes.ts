@@ -40,7 +40,7 @@ async function updateStore(mutator: (store: Store) => void): Promise<void> {
     mutator(store);
     await mkdir(dataDir, { recursive: true });
     const temp = `${storePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-    await writeFile(temp, `${JSON.stringify(store, null, 2)}\\n`, { encoding: "utf8", flag: "wx" });
+    await writeFile(temp, `${JSON.stringify(store, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
     try { await rename(temp, storePath); }
     catch (error) { await unlink(temp).catch(() => undefined); throw error; }
   });
@@ -77,9 +77,6 @@ export default async function workRoutes(app: FastifyInstance) {
     const users = await getUsers();
     const user = users.find((entry) => entry.id === userId);
     if (!user) return reply.code(401).send({ message: "Session user no longer exists." });
-    const now = Date.now();
-    const date = dayKey(new Date(now));
-    const key = `${userId}:${date}`;
     const now = Date.now();
     const date = dayKey(new Date(now));
     const key = `${userId}:${date}`;
