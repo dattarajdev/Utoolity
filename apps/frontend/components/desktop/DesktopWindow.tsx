@@ -19,6 +19,7 @@ type Props = {
   onFocus?: () => void;
   offset?: { x: number; y: number };
   active?: boolean;
+  visible?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   initialState?: WindowState;
   onStateChange?: (state: WindowState) => void;
@@ -57,6 +58,7 @@ export default function DesktopWindow({
   onFocus,
   offset = { x: 0, y: 0 },
   active = true,
+  visible = true,
   onExpandedChange,
   initialState,
   onStateChange,
@@ -325,6 +327,9 @@ export default function DesktopWindow({
           setMinimized(false);
           setMaximizedState(true);
         }}
+        aria-hidden={!visible}
+        inert={!visible}
+        style={{ visibility: visible ? "visible" : "hidden" }}
         className={`desktop-window-minimized fixed bottom-5 left-1/2 z-1000 -translate-x-1/2 rounded-full border border-border bg-popover px-4 py-2 text-sm font-semibold text-popover-foreground shadow-xl ${
           closing ? "desktop-window-closing pointer-events-none" : ""
         }`}
@@ -350,7 +355,10 @@ export default function DesktopWindow({
   return createPortal(
     <section
       aria-label={title}
+      aria-hidden={!visible}
+      inert={!visible}
       style={{
+        visibility: visible ? "visible" : "hidden",
         width: maximized ? "100vw" : `min(${size.width}px, 100vw)`,
         height: maximized ? "100dvh" : `min(${size.height}px, 100dvh)`,
         transform: maximized

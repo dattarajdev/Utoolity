@@ -100,33 +100,6 @@ export default function Home() {
     shellStateRef.current = shellState;
   }, [shellState]);
   useEffect(() => {
-    if (shellState !== "locked") return;
-
-    const userId = localStorage.getItem("utoolity.authenticated-user-id");
-    if (userId) {
-      // A locked device must not retain a restorable set of open applications.
-      localStorage.setItem(`utoolity.open-apps.${userId}`, "[]");
-      localStorage.setItem(`utoolity.workspace-cleared.${userId}`, "true");
-    }
-
-    // Persist the empty workspace through the existing authenticated socket
-    // before its locked-state lifecycle closes the connection.
-    const emptyWorkspace = {
-      openApps: [],
-      activeAppKey: null,
-      context: {
-        boundingBoxFolder: localStorage.getItem("utoolity.bounding-box.folder"),
-        polygonFolder: localStorage.getItem("utoolity.polygon.folder"),
-      },
-    };
-    window.dispatchEvent(
-      new CustomEvent("utoolity:workspace-state-changed", {
-        detail: emptyWorkspace,
-      }),
-    );
-  }, [shellState]);
-
-  useEffect(() => {
     let queuedWrite = Promise.resolve();
 
     const persistWallpaper = (event: Event) => {
@@ -509,14 +482,12 @@ export default function Home() {
       <IssueReporter />
       {shellState !== "checking" ? (
         <>
-          {shellState === "authenticated" && (
-            <Desktop
-              onSleep={enterSleep}
-              onLock={enterLocked}
-              isVisible
-              showChrome
-            />
-          )}
+          <Desktop
+            onSleep={enterSleep}
+            onLock={enterLocked}
+            isVisible={shellState === "authenticated"}
+            showChrome={shellState === "authenticated"}
+          />
           <Lockcard
             socketDisconnected={false}
             initialAuthenticated={shellState === "sleep"}

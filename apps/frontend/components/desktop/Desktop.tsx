@@ -80,8 +80,6 @@ export default function Desktop({
         return;
       }
       const key = `${app}:${filePath ?? ""}`;
-      const userId = localStorage.getItem("utoolity.authenticated-user-id");
-      if (userId) localStorage.removeItem(`utoolity.workspace-cleared.${userId}`);
       setActiveAppKey(key);
       setOpenApps((current) =>
         current.some((item) => item.app === app && item.filePath === filePath)
@@ -189,10 +187,8 @@ export default function Desktop({
     }
     setWorkspaceUserId(userId);
     const storageKey = `utoolity.open-apps.${userId}`;
-    const workspaceWasCleared =
-      localStorage.getItem(`utoolity.workspace-cleared.${userId}`) === "true";
     try {
-      const saved = workspaceWasCleared ? null : localStorage.getItem(storageKey);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const restored = JSON.parse(saved) as Array<{
           app: DesktopAppId;
@@ -220,7 +216,7 @@ export default function Desktop({
     }>("/api/auth/workspace")
       .then((result) => {
         if (cancelled || !result) return;
-        if (Array.isArray(result.workspace.openApps) && !workspaceWasCleared) {
+        if (Array.isArray(result.workspace.openApps)) {
           setOpenApps(result.workspace.openApps);
           setActiveAppKey(
             typeof result.workspace.activeAppKey === "string"
