@@ -34,6 +34,7 @@ export default function DesktopBackground({
     serverInitialLayer(initialWallpaperId, initialTheme),
   );
   const [previous, setPrevious] = useState<Layer | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
   const [theme, setTheme] = useState<Mode>(initialTheme);
 
   useLayoutEffect(() => {
@@ -147,8 +148,17 @@ export default function DesktopBackground({
 
   useEffect(() => {
     if (!previous) return;
-    const timeout = window.setTimeout(() => setPrevious(null), 900);
-    return () => window.clearTimeout(timeout);
+
+    const frame = window.requestAnimationFrame(() => setTransitioning(true));
+    const timeout = window.setTimeout(() => {
+      setPrevious(null);
+      setTransitioning(false);
+    }, 800);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
   }, [previous]);
 
   const render = (layer: Layer) =>
@@ -189,7 +199,7 @@ export default function DesktopBackground({
         <div
           key={previous.key}
           aria-hidden
-          className="absolute inset-0 animate-[wallpaper-fade-out_650ms_ease-in-out_forwards]"
+          className={"absolute inset-0 transition-opacity duration-700 ease-in-out " + (transitioning ? "opacity-0" : "opacity-100")}
         >
           {render(previous)}
         </div>
@@ -197,7 +207,7 @@ export default function DesktopBackground({
       <div
         key={active.key}
         aria-hidden
-        className="absolute inset-0 animate-[wallpaper-fade-in_650ms_ease-in-out_both]"
+        className={"absolute inset-0 transition-opacity duration-700 ease-in-out " + (previous && !transitioning ? "opacity-0" : "opacity-100")}
       >
         {render(active)}
       </div>
