@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import {
   DEFAULT_WALLPAPER_ID,
   getWallpaper,
@@ -36,7 +36,7 @@ export default function DesktopBackground({
   const [previous, setPrevious] = useState<Layer | null>(null);
   const [theme, setTheme] = useState<Mode>(initialTheme);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let cancelled = false;
     let key = 0;
     let request = 0;
@@ -111,10 +111,24 @@ export default function DesktopBackground({
     }
 
     const clientWallpaperId = readWallpaperPreference();
-    if (clientWallpaperId !== initialWallpaperId) {
-      void apply(clientWallpaperId, mode());
-    } else if (mode() !== initialTheme) {
-      void apply(clientWallpaperId, mode());
+    const clientTheme = mode();
+    if (
+      clientWallpaperId !== initialWallpaperId ||
+      clientTheme !== initialTheme
+    ) {
+      // Reconcile the browser cache before the first paint. The cookie can
+      // lag behind localStorage, so do not expose a stale wallpaper while
+      // session verification is still pending.
+      const wallpaper = getWallpaper(clientWallpaperId);
+      const cachedLayer = {
+        wallpaper,
+        url: getWallpaperUrl(wallpaper, clientTheme),
+        key: ++key,
+      };
+      setTheme(clientTheme);
+      setPrevious(null);
+      setActive(cachedLayer);
+      current = cachedLayer;
     }
 
     return () => {
