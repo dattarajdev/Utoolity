@@ -59,18 +59,36 @@ export default function DesktopBackground({
         if (cancelled || token !== request) return;
         if (wallpaper.kind === "live") return;
         const fallback = getWallpaper(DEFAULT_WALLPAPER_ID);
-        document.documentElement.style.setProperty("--utoolity-cached-wallpaper", `url("${getWallpaperUrl(fallback, nextTheme)}")`);
+        const fallbackUrl = getWallpaperUrl(fallback, nextTheme);
+        document.documentElement.style.setProperty("--utoolity-cached-wallpaper", `url("${fallbackUrl}")`);
         const fallbackLayer = {
           wallpaper: fallback,
-          url: getWallpaperUrl(fallback, nextTheme),
+          url: fallbackUrl,
           key: ++key,
         };
         const outgoing = current.key === 0 ? { ...current, key: ++key } : current;
+        setPrevious(outgoing);
+        current = fallbackLayer;
+        setActive(fallbackLayer);
+        return;
+      }
+
+      if (
+        cancelled ||
+        token !== request ||
+        getWallpaperUrl(getWallpaper(readWallpaperPreference()), mode()) !==
+          url
+      ) {
+        return;
+      }
+
+      document.documentElement.style.setProperty("--utoolity-cached-wallpaper", `url("${url}")`);
+      // Snapshot the server-rendered layer before replacing its early CSS cache.
+      const outgoing = current.key === 0 ? { ...current, key: ++key } : current;
       setPrevious(outgoing);
       current = layer;
       setActive(layer);
     };
-
     const change = (event: Event) =>
       void apply(
         (event as CustomEvent<string>).detail || readWallpaperPreference(),
