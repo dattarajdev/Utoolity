@@ -229,8 +229,8 @@ async function saveIssueReport(report: Record<string, unknown>): Promise<void> {
       try {
         parsed = JSON.parse(raw) as { reports?: Array<Record<string, unknown>> };
       } catch (error) {
-        // Earlier builds could append a literal "\\n" instead of a newline.
-        if (!raw.endsWith("\\\\n")) throw error;
+        // Recover reports written by builds that appended a literal "\n".
+        if (!raw.endsWith("\\n")) throw error;
         parsed = JSON.parse(raw.slice(0, -2)) as {
           reports?: Array<Record<string, unknown>>;
         };
@@ -241,10 +241,18 @@ async function saveIssueReport(report: Record<string, unknown>): Promise<void> {
     }
 
     reports.push(report);
-    const temporaryPath = `${issueReportsFilePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    const temporaryPath =
+      issueReportsFilePath +
+      "." +
+      process.pid +
+      "." +
+      Date.now() +
+      "." +
+      Math.random().toString(36).slice(2) +
+      ".tmp";
     await writeFile(
       temporaryPath,
-      `${JSON.stringify({ reports }, null, 2)}\\n`,
+      JSON.stringify({ reports }, null, 2) + "\n",
       { encoding: "utf8", flag: "wx" },
     );
     try {
@@ -530,6 +538,18 @@ export default async function authRoutes(app: FastifyInstance) {
         }
       }
 
+      const report = {
+        id: "issue-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+        appName,
+        errorName,
+        details,
+        description,
+        source,
+        requestId,
+        reportedBy,
+        reportedAt: new Date().toISOString(),
+        status: "open",
+      };
       await saveIssueReport(report);
       request.log.warn({ reportId: report.id, reportedBy: reportedBy.type }, "Issue report received");
       return reply.code(201).send({ success: true, reportId: report.id });
