@@ -52,7 +52,8 @@ export default async function RootLayout({
                 root.classList.toggle("light", theme === "light");
                 root.style.colorScheme = theme;
                 const wallpapers = ${JSON.stringify(GENERATED_WALLPAPERS.map(({ id, url, darkUrl, lightUrl, kind }) => ({ id, url, darkUrl, lightUrl, kind })))};
-                const storedWallpaper = localStorage.getItem("utoolity.wallpaper");
+                const wallpaperCookie = document.cookie.split("; ").find((item) => item.startsWith("utoolity.wallpaper="))?.split("=").slice(1).join("=") || "";
+                const storedWallpaper = localStorage.getItem("utoolity.wallpaper") || decodeURIComponent(wallpaperCookie);
                 const wallpaper = wallpapers.find((item) => item.id === storedWallpaper) || wallpapers[0];
                 if (wallpaper && wallpaper.kind === "image") {
                   const wallpaperUrl = (theme === "dark" ? wallpaper.darkUrl : wallpaper.lightUrl) || wallpaper.url;
