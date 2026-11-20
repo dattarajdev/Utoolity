@@ -10,7 +10,8 @@
     "wraith": "node scripts/maintenance/cli.cjs",
     "postgresql": "node scripts/database/postgres.cjs",
     "redis:up": "node scripts/redis/start.cjs",
-    "clean": "node scripts/clear_unwanted/script.cjs"
+    "clean": "node scripts/clear_unwanted/script.cjs",
+    "start": "turbo run start"
   },
   "devDependencies": {
     "prettier": "catalog:",
