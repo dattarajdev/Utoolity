@@ -5,6 +5,19 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ["172.31.*.*", "10.*.*.*", "localhost", "127.0.0.1"],
 
+  async headers() {
+    return [
+      {
+        source: "/wallpapers/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return {
       afterFiles: [
