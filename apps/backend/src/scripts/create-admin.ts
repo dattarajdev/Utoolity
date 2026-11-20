@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   }
 
   const admin: StoredUser = {
-    id: randomUUID(),
+    id: hostname,
     hostname,
     displayName,
     password,
