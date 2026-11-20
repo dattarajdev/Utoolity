@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { DEFAULT_WALLPAPER_ID, WALLPAPER_STORAGE_KEY } from "@/lib/wallpapers";
+import { GENERATED_WALLPAPERS } from "@/lib/wallpapers.generated";
 import { Nunito } from "next/font/google";
 import { TooltipProvider } from "@repo/ui/shadcn/tooltip";
 import DeviceTheme from "@/components/shared/DeviceTheme";
@@ -50,6 +51,14 @@ export default async function RootLayout({
                 root.classList.toggle("dark", theme === "dark");
                 root.classList.toggle("light", theme === "light");
                 root.style.colorScheme = theme;
+                const wallpapers = ${JSON.stringify(GENERATED_WALLPAPERS.map(({ id, url, darkUrl, lightUrl, kind }) => ({ id, url, darkUrl, lightUrl, kind })))};
+                const storedWallpaper = localStorage.getItem("utoolity.wallpaper");
+                const wallpaper = wallpapers.find((item) => item.id === storedWallpaper) || wallpapers[0];
+                if (wallpaper && wallpaper.kind === "image") {
+                  const wallpaperUrl = (theme === "dark" ? wallpaper.darkUrl : wallpaper.lightUrl) || wallpaper.url;
+                  root.style.setProperty("--utoolity-cached-wallpaper", 'url("' + wallpaperUrl + '")');
+                  root.dataset.wallpaper = wallpaper.id;
+                }
               } catch {}
             })();`,
           }}
