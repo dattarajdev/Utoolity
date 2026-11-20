@@ -470,6 +470,41 @@ export default function Home() {
   }, [shellState, inactivitySettings.lockAfterMs]);
 
   useEffect(() => {
+    if (shellState === "checking") return;
+    const sendTelemetry = () => {
+      const userId = localStorage.getItem("utoolity.authenticated-user-id");
+      if (!userId) return;
+      let openApps: Array<{ app: string }> = [];
+      if (shellState === "authenticated") {
+        try {
+          const saved = localStorage.getItem(`utoolity.open-apps.${userId}`);
+          const parsed: unknown = saved ? JSON.parse(saved) : [];
+          if (Array.isArray(parsed)) {
+            openApps = parsed
+              .filter((item): item is { app: string } =>
+                !!item && typeof item === "object" && typeof (item as { app?: unknown }).app === "string",
+              )
+              .slice(0, 30);
+          }
+        } catch {
+          openApps = [];
+        }
+      }
+      void api("/api/auth/telemetry", {
+        method: "POST",
+        body: JSON.stringify({ shellState, openApps }),
+      }).catch(() => undefined);
+    };
+    sendTelemetry();
+    const interval = window.setInterval(sendTelemetry, 15_000);
+    window.addEventListener("utoolity:workspace-state-changed", sendTelemetry);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("utoolity:workspace-state-changed", sendTelemetry);
+    };
+  }, [shellState]);
+
+  useEffect(() => {
     document.documentElement.dataset.shellState = shellState;
     window.dispatchEvent(
       new CustomEvent("utoolity:shell-state-changed", {
