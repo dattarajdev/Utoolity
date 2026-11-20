@@ -6,13 +6,15 @@ type Task = { id: string; title: string; description: string; datasetPath: strin
 const nextStatus: Record<Task["status"], Task["status"]> = { todo: "in_progress", in_progress: "review", review: "done", done: "todo" };
 export default function AssignedWork() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const load = useCallback(() => { void api<{ tasks: Task[] }>("/api/tasks").then((result) => setTasks(result.tasks)).catch(() => undefined); }, []);
+  const [isIntern, setIsIntern] = useState(false);
+  const load = useCallback(() => { void api<{ role: string; tasks: Task[] }>("/api/tasks").then((result) => { setIsIntern(result.role === "intern"); setTasks(result.tasks); }).catch(() => undefined); }, []);
   useEffect(() => { load(); const interval = window.setInterval(load, 60_000); return () => window.clearInterval(interval); }, [load]);
   const update = async (task: Task) => {
     const status = nextStatus[task.status];
     await api(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
     setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item));
   };
+  if (!isIntern) return null;
   return (
     <aside className="absolute bottom-5 right-5 z-30 w-72 max-w-[calc(100%-2.5rem)] overflow-hidden rounded-xl border border-border/70 bg-card/90 text-card-foreground shadow-xl backdrop-blur-xl">
       <div className="border-b border-border px-4 py-3"><p className="text-sm font-semibold">Assigned work</p><p className="text-xs text-muted-foreground">{tasks.length} tasks assigned to you</p></div>
