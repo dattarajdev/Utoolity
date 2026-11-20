@@ -6,6 +6,7 @@ import { Nunito } from "next/font/google";
 import { TooltipProvider } from "@repo/ui/shadcn/tooltip";
 import DeviceTheme from "@/components/shared/DeviceTheme";
 import BrowserGuards from "@/components/shared/BrowserGuards";
+import RouteAccessGuard from "@/components/shared/RouteAccessGuard";
 import CustomCursor from "@/components/shared/CustomCursor";
 import { InitialDesktopPreferencesProvider } from "@/components/shared/InitialDesktopPreferences";
 import "./globals.css";
@@ -74,7 +75,7 @@ export default async function RootLayout({
             <div className="flex min-h-screen">
               {/* <Sidebar /> */}
 
-              <main className="min-w-0 flex-1">{children}</main>
+              <main className="min-w-0 flex-1"><RouteAccessGuard>{children}</RouteAccessGuard></main>
             </div>
           </InitialDesktopPreferencesProvider>
         </TooltipProvider>
