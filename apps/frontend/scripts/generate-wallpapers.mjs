@@ -24,7 +24,7 @@ async function assertLfsAssets(directory) {
         "version https://git-lfs.github.com/spec/v1",
       )) {
         throw new Error(
-          `Git LFS asset is not downloaded: ${path.relative(root, filePath)}\\n` +
+          `Git LFS asset is not downloaded: ${path.relative(root, filePath)}\n` +
           "Run `git lfs install` and `git lfs pull` from the repository root, then rebuild.",
         );
       }
