@@ -582,6 +582,17 @@ export default function Desktop({
   }, [closeWindow]);
 
   useEffect(() => {
+    const openAssignedDataset = (event: Event) => {
+      const filePath = (event as CustomEvent<{ path?: string }>).detail?.path;
+      if (!filePath) return;
+      const isImage = /\\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(filePath);
+      openApp(isImage ? "gallery" : "notepad", filePath);
+    };
+    window.addEventListener("utoolity:open-assigned-dataset", openAssignedDataset);
+    return () => window.removeEventListener("utoolity:open-assigned-dataset", openAssignedDataset);
+  }, [openApp]);
+
+  useEffect(() => {
     const openFolderPicker = (event: Event) => {
       const requester = (event as CustomEvent<{ requester?: string }>).detail
         ?.requester;
