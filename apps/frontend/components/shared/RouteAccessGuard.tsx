@@ -20,10 +20,7 @@ export default function RouteAccessGuard({
   const [authorizedPath, setAuthorizedPath] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pathname === "/") {
-      setAuthorizedPath("/");
-      return;
-    }
+    if (pathname === "/") return;
 
     let active = true;
     setAuthorizedPath(null);
