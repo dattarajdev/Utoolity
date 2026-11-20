@@ -1,8 +1,40 @@
-import {readdir,writeFile} from "node:fs/promises";
+import { open, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-const dir=path.join(root,"public/wallpapers");
+const publicDir = path.join(root, "public");
+const dir = path.join(publicDir, "wallpapers");
+
+async function assertLfsAssets(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const filePath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      await assertLfsAssets(filePath);
+      continue;
+    }
+
+    const file = await open(filePath, "r");
+    try {
+      const header = Buffer.alloc(64);
+      const { bytesRead } = await file.read(header, 0, header.length, 0);
+      if (header.subarray(0, bytesRead).toString("utf8").startsWith(
+        "version https://git-lfs.github.com/spec/v1",
+      )) {
+        throw new Error(
+          `Git LFS asset is not downloaded: ${path.relative(root, filePath)}\\n` +
+          "Run `git lfs install` and `git lfs pull` from the repository root, then rebuild.",
+        );
+      }
+    } finally {
+      await file.close();
+    }
+  }
+}
+
+await assertLfsAssets(publicDir);
 const imgs=new Set([".avif",".jpeg",".jpg",".png",".webp"]), vids=new Set([".mp4",".webm",".ogv",".mov"]);
 const pretty=s=>s.replace(/\.[^.]+$/,"").replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
 const url=(...p)=>"/"+["wallpapers",...p].map(encodeURIComponent).join("/");
