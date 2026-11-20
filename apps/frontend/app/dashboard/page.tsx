@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { AlertCircle, Bug, Clock3, Plus, RefreshCw, ShieldCheck, Users, Activity, CheckCircle2 } from "lucide-react";
-import FileManager from "@/components/files/FileManager";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,8 @@ type Task = { id: string; title: string; description: string; assigneeId: string
 type Attendance = { userId: string; displayName: string; hostname: string; date?: string; firstLoginAt?: string; lastSeenAt?: string; lastAppClosedAt?: string | null; presentMs?: number; activeMs?: number; appUsageMs?: Record<string, number> };
 type DashboardData = { stats: { totalUsers: number; interns: number; admins: number; openIssues: number }; users: User[]; reports: Report[] };
 type WorkData = { tasks: Task[]; attendance: Attendance[]; interns: Array<{ id: string; displayName: string; hostname: string }> };
+
+const FileManager = dynamic(() => import("@/components/files/FileManager"), { ssr: false });
 
 const columns: Array<{ status: TaskStatus; title: string }> = [
   { status: "todo", title: "To do" },
