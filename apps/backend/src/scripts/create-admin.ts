@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   const lockFilePath = `${usersFilePath}.admin-bootstrap.lock`;
   await mkdir(dataDirectory, { recursive: true });
 
-  let lock;
+  let lock: Awaited<ReturnType<typeof open>>;
   try {
     lock = await open(lockFilePath, "wx");
   } catch (error) {
