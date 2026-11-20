@@ -35,8 +35,8 @@ async function main(): Promise<void> {
   if (displayName.length < 2 || displayName.length > 80) {
     throw new Error("ADMIN_DISPLAY_NAME must be between 2 and 80 characters.");
   }
-  if (password.length < 12 || password.length > 1024) {
-    throw new Error("ADMIN_PASSWORD must be between 12 and 1024 characters.");
+  if (password.length < 8 || password.length > 1024) {
+    throw new Error("ADMIN_PASSWORD must be between 8 and 1024 characters.");
   }
 
   const dataDirectory = path.resolve(
