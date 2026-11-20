@@ -65,23 +65,8 @@ export default function DesktopBackground({
           url: getWallpaperUrl(fallback, nextTheme),
           key: ++key,
         };
-        setPrevious(current);
-        current = fallbackLayer;
-        setActive(fallbackLayer);
-        return;
-      }
-
-      if (
-        cancelled ||
-        token !== request ||
-        getWallpaperUrl(getWallpaper(readWallpaperPreference()), mode()) !==
-          url
-      ) {
-        return;
-      }
-
-      document.documentElement.style.setProperty("--utoolity-cached-wallpaper", `url("${url}")`);
-      setPrevious(current);
+        const outgoing = current.key === 0 ? { ...current, key: ++key } : current;
+      setPrevious(outgoing);
       current = layer;
       setActive(layer);
     };
@@ -166,7 +151,12 @@ export default function DesktopBackground({
         key={layer.key}
         aria-hidden
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `var(--utoolity-cached-wallpaper, url("${layer.url}"))` }}
+        style={{
+          backgroundImage:
+            layer.key === 0
+              ? `var(--utoolity-cached-wallpaper, url("${layer.url}"))`
+              : `url("${layer.url}")`,
+        }}
       />
     );
 
