@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Bug, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 type DashboardData = {
   stats: {
@@ -79,7 +80,7 @@ export default function AdminDashboardPage() {
             disabled={loading}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} />
+            <RefreshCw className={cn("size-4", loading && "animate-spin")} />
             Refresh
           </button>
         </header>
