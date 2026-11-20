@@ -47,6 +47,7 @@ export default function Home() {
   const lastSocketActivityRef = useRef(0);
   const pendingWorkspaceRef = useRef<unknown>(null);
   const shellStateRef = useRef(shellState);
+  const lastTelemetryAtRef = useRef(0);
 
   const sendSocketActivity = useCallback(() => {
     const socket = socketRef.current;
@@ -472,6 +473,9 @@ export default function Home() {
   useEffect(() => {
     if (shellState === "checking") return;
     const sendTelemetry = () => {
+      const now = Date.now();
+      if (now - lastTelemetryAtRef.current < 5_000) return;
+      lastTelemetryAtRef.current = now;
       const userId = localStorage.getItem("utoolity.authenticated-user-id");
       if (!userId) return;
       let openApps: Array<{ app: string }> = [];
