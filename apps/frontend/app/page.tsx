@@ -106,6 +106,7 @@ export default function Home() {
     if (userId) {
       // A locked device must not retain a restorable set of open applications.
       localStorage.setItem(`utoolity.open-apps.${userId}`, "[]");
+      localStorage.setItem(`utoolity.workspace-cleared.${userId}`, "true");
     }
 
     // Persist the empty workspace through the existing authenticated socket
