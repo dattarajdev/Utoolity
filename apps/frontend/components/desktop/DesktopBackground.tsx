@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_WALLPAPER_ID,
   getWallpaper,
@@ -199,7 +200,10 @@ export default function DesktopBackground({
         <div
           key={previous.key}
           aria-hidden
-          className={"absolute inset-0 transition-opacity duration-700 ease-in-out " + (transitioning ? "opacity-0" : "opacity-100")}
+          className={cn(
+            "absolute inset-0 transition-opacity duration-700 ease-in-out",
+            transitioning ? "opacity-0" : "opacity-100",
+          )}
         >
           {render(previous)}
         </div>
@@ -207,7 +211,7 @@ export default function DesktopBackground({
       <div
         key={active.key}
         aria-hidden
-        className={"absolute inset-0 transition-opacity duration-700 ease-in-out " + (previous && !transitioning ? "opacity-0" : "opacity-100")}
+        className="absolute inset-0 opacity-100"
       >
         {render(active)}
       </div>
