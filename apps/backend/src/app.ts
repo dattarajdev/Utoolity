@@ -6,6 +6,7 @@ import multipart from "@fastify/multipart";
 import websocket from "@fastify/websocket";
 
 import authRoutes from "./routes/auth.routes.js";
+import workRoutes from "./routes/work.routes.js";
 import videoToImagesRoutes from "./routes/videoToImages.routes.js";
 import videoTrimRoutes from "./routes/videoTrim.routes.js";
 import videoConverterRoutes from "./routes/videoConverter.routes.js";
@@ -131,6 +132,10 @@ app.get("/health", async () => ({
 
 // Authentication and storage
 await app.register(authRoutes, {
+  prefix: "/api",
+});
+
+await app.register(workRoutes, {
   prefix: "/api",
 });
 
