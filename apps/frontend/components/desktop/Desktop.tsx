@@ -827,6 +827,7 @@ export default function Desktop({
             windowKey={key}
             title={appTitles[app]}
             active={activeAppKey === key}
+            visible={isVisible}
             offset={{ x: (index % 3) * 28, y: (index % 3) * 24 }}
             initialState={windowState}
             onStateChange={(nextWindowState) => {
