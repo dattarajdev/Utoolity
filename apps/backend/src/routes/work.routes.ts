@@ -147,7 +147,7 @@ export default async function workRoutes(app: FastifyInstance) {
     const date = dayKey(new Date());
     const attendance = users.filter((user) => user.role === "intern").map((user) => {
       const record = store.attendance[`${user.id}:${date}`] ?? null;
-      return { userId: user.id, displayName: user.displayName, hostname: user.hostname, ...(record ?? {}) };
+      return { ...(record ?? {}), userId: user.id, displayName: user.displayName, hostname: user.hostname };
     });
     return { tasks: store.tasks, attendance, interns: users.filter((user) => user.role === "intern").map(({ id, displayName, hostname }) => ({ id, displayName, hostname })) };
   });
