@@ -13,6 +13,7 @@ import imageConverterRoutes from "./routes/imageConverter.routes.js";
 import imageClassificationRoutes from "./routes/imageClassification.routes.js";
 import polygonAnnotationRoutes from "./routes/polygonAnnotation.routes.js";
 import boundingBoxRoutes from "./routes/boundingBox.routes.js";
+import augmentationRoutes from "./routes/augmentation.routes.js";
 import videoMergeRoutes from "./routes/videoMerge.routes.js";
 import storageRoutes from "./routes/storage.routes.js";
 
@@ -169,6 +170,10 @@ await app.register(polygonAnnotationRoutes, {
 
 await app.register(boundingBoxRoutes, {
   prefix: "/api/tools/bounding-box",
+});
+
+await app.register(augmentationRoutes, {
+  prefix: "/api/tools/augmentation",
 });
 
 export default app;
