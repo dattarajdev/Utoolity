@@ -66,6 +66,7 @@ interface StatCardProps {
   icon?: React.ReactNode;
   color?: string;
   alert?: boolean;
+  compact?: boolean;
   subtext?: string;
 }
 
@@ -75,35 +76,72 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon,
   color = "#3B82F6",
   alert = false,
+  compact = false,
   subtext,
-}) => (
-  <div
-    className={`flex flex-col gap-1 px-3 py-2 rounded-lg border transition-colors ${
-      alert
-        ? "border-amber-500/50 bg-amber-950/20 text-amber-200"
-        : "border-[#454950] bg-[#27292D] text-[#E5E7EB]"
-    }`}
-  >
-    <div className="flex items-center justify-between gap-1.5">
-      <span className="text-[11px] font-medium text-[#A5A9B0] truncate">
-        {label}
-      </span>
-      {icon && (
-        <span className="shrink-0" style={{ color: alert ? "#F59E0B" : color }}>
-          {icon}
+}) => {
+  const isAlertActive = alert && Number(value) > 0;
+
+  if (compact) {
+    return (
+      <div
+        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+          isAlertActive
+            ? "border-amber-700/60 bg-amber-950/40 text-amber-200"
+            : "border-[#454950] bg-[#27292D] text-[#E5E7EB]"
+        }`}
+      >
+        <span className="flex items-center gap-1.5 font-medium text-[#A5A9B0] truncate">
+          <span
+            className="shrink-0"
+            style={{ color: isAlertActive ? "#d97706" : color }}
+          >
+            {icon}
+          </span>
+          <span className="truncate">{label}</span>
         </span>
-      )}
+        <span
+          className={`font-bold ml-2 shrink-0 ${
+            isAlertActive ? "text-amber-300" : "text-[#E5E7EB]"
+          }`}
+        >
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex flex-col gap-1 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-lg border transition-colors ${
+        isAlertActive
+          ? "border-amber-700/60 bg-amber-950/40 text-amber-200"
+          : "border-[#454950] bg-[#27292D] text-[#E5E7EB]"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-1.5">
+        <span className="text-[11px] font-medium text-[#A5A9B0] truncate">
+          {label}
+        </span>
+        {icon && (
+          <span
+            className="shrink-0"
+            style={{ color: isAlertActive ? "#F59E0B" : color }}
+          >
+            {icon}
+          </span>
+        )}
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-lg font-bold tracking-tight text-[#E5E7EB]">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </span>
+        {subtext && (
+          <span className="text-[10px] text-[#A5A9B0] font-mono">{subtext}</span>
+        )}
+      </div>
     </div>
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-lg font-bold tracking-tight text-[#E5E7EB]">
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </span>
-      {subtext && (
-        <span className="text-[10px] text-[#A5A9B0] font-mono">{subtext}</span>
-      )}
-    </div>
-  </div>
-);
+  );
+};
 
 // ---- Toggle Switch ---------------------------------------------------------
 
@@ -215,17 +253,19 @@ export const Button: React.FC<ButtonProps> = ({
 
   const sizeClasses = {
     sm: "px-2.5 py-1 text-xs",
-    md: "px-3 py-1.5 text-xs",
-    lg: "px-4 py-2 text-sm",
+    md: "px-3 py-1.5 text-xs sm:text-sm",
+    lg: "px-4 py-2 text-sm sm:text-base font-semibold",
   }[size];
 
   const variantClasses = {
     primary:
-      "bg-blue-600 hover:bg-blue-500 text-white shadow-xs border border-blue-500",
+      "bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white shadow-xs border border-blue-500",
     secondary:
-      "bg-[#3C4046] hover:bg-[#454950] text-[#E5E7EB] border border-[#454950]",
-    danger: "bg-red-600 hover:bg-red-500 text-white border border-red-500",
-    ghost: "bg-transparent hover:bg-[#3C4046] text-[#A5A9B0] hover:text-[#E5E7EB]",
+      "bg-[#3C4046] hover:bg-[#454950] active:bg-[#4E535B] text-[#E5E7EB] border border-[#454950]",
+    danger:
+      "bg-red-600 hover:bg-red-500 active:bg-red-700 text-white border border-red-500",
+    ghost:
+      "bg-transparent hover:bg-[#3C4046] text-[#A5A9B0] hover:text-[#E5E7EB]",
   }[variant];
 
   return (
@@ -234,31 +274,35 @@ export const Button: React.FC<ButtonProps> = ({
       className={`${base} ${sizeClasses} ${variantClasses} ${className}`}
       {...props}
     >
-      {loading && (
-        <svg
-          className="animate-spin -ml-0.5 h-3.5 w-3.5 text-current"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
-      )}
+      {loading && <Spinner size={size === "lg" ? "md" : "sm"} />}
       {children}
     </button>
   );
 };
+
+// ---- Loading Spinner -------------------------------------------------------
+
+export const Spinner: React.FC<{ size?: "sm" | "md" }> = ({ size = "md" }) => (
+  <svg
+    className={`animate-spin ${size === "sm" ? "w-3.5 h-3.5" : "w-5 h-5"} text-current`}
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+    />
+  </svg>
+);
 
 // ---- Alert Banner ----------------------------------------------------------
 
@@ -282,9 +326,25 @@ export const Alert: React.FC<AlertProps> = ({
 
   return (
     <div
-      className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs leading-tight ${styles} ${className}`}
+      className={`flex items-start gap-2 p-2.5 rounded-lg border text-xs leading-tight ${styles} ${className}`}
     >
       {children}
     </div>
   );
 };
+
+// ---- Input with Label ------------------------------------------------------
+
+interface LabeledInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+}
+
+export const LabeledInput: React.FC<LabeledInputProps> = ({ label, ...props }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-medium text-[#A5A9B0]">{label}</label>
+    <input
+      {...props}
+      className="border border-[#454950] rounded-lg px-3 py-1.5 sm:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-[#27292D] text-[#E5E7EB]"
+    />
+  </div>
+);

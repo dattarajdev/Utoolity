@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import GeometryPlayground from "../../../components/augmentation/GeometryPlayground";
+import AugmentationStudio from "../../../components/augmentation/AugmentationStudio";
 
 export default function AugmentationPage() {
-  return <GeometryPlayground />;
+  return <AugmentationStudio />;
 }
