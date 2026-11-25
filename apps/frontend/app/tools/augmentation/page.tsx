@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import AugmentationStudio from "../../../components/augmentation/AugmentationStudio";
+import AugmentationHub from "@/components/augmentation/hub/AugmentationHub";
 
 export default function AugmentationPage() {
-  return <AugmentationStudio />;
+  return <AugmentationHub />;
 }

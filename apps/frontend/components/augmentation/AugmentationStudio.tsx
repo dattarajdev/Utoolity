@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Activity, Layers } from "lucide-react";
+import Link from "next/link";
+import { Activity, Layers, ChevronLeft } from "lucide-react";
 import DatasetSelection from "./DatasetSelection";
 import DatasetInspector from "./DatasetInspector";
 import AugmentationPanel from "./AugmentationPanel";
@@ -13,7 +14,15 @@ import {
   type AugmentationConfig,
 } from "../../api/augmentation.api";
 
-export default function AugmentationStudio() {
+interface AugmentationStudioProps {
+  showBackButton?: boolean;
+  backHref?: string;
+}
+
+export default function AugmentationStudio({
+  showBackButton = false,
+  backHref = "/tools/augmentation",
+}: AugmentationStudioProps) {
   const [datasetPath, setDatasetPath] = useState("");
   const [outputPath, setOutputPath] = useState("");
   const [scanResult, setScanResult] = useState<ScanResponse | null>(null);
@@ -43,13 +52,29 @@ export default function AugmentationStudio() {
       <header className="sticky top-0 z-40 bg-[#2C2F34]/95 backdrop-blur-xs border-b border-[#454950] shadow-xs">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-13 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {showBackButton && (
+              <Link
+                href={backHref}
+                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-[#A5A9B0] hover:text-[#E5E7EB] bg-[#27292D] hover:bg-[#3C4046] border border-[#454950] transition-colors shadow-xs mr-1 cursor-pointer"
+                title="Return to Augmentation Tasks Hub"
+              >
+                <ChevronLeft size={16} />
+                <span className="hidden sm:inline">Back to Tasks</span>
+              </Link>
+            )}
+
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white shadow-xs">
               <Layers size={18} />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-[#E5E7EB] leading-tight tracking-tight">
-                AugmentStudio
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-bold text-[#E5E7EB] leading-tight tracking-tight">
+                  AugmentStudio
+                </h1>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60">
+                  Task 2 — Geometric Augmentation
+                </span>
+              </div>
               <p className="text-[11px] text-[#A5A9B0] leading-tight">
                 Dataset Augmentation Studio
               </p>
@@ -175,7 +200,7 @@ export default function AugmentationStudio() {
 
       {/* Footer */}
       <footer className="text-center text-xs text-[#8F949D] py-3 border-t border-[#454950] bg-[#2C2F34]/50">
-        Dataset Augmentation Studio • All processing is strictly local • No images or annotations leave your machine.
+        Dataset Augmentation Studio • Task 2 Workspace • All processing is strictly local • No images or annotations leave your machine.
       </footer>
     </div>
   );
